@@ -6,5 +6,13 @@
     "ALLOWED_ORIGINS": "https://www.example.com",
     "GITHUB_CLIENT_ID": "<YOUR_GITHUB_CLIENT_ID>",
     "WORKER_ORIGIN": "https://sveltia-cms-auth.<SUBDOMAIN>.workers.dev"
-  }
+  },
+  "workers_dev": true,
+  "preview_urls": false
+  // "routes": [
+  //   {
+  //     "pattern": "my-auth.kuuluu.org",
+  //     "custom_domain": true
+  //   }
+  // ]
 }
