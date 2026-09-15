@@ -1,9 +1,9 @@
-import type { Env } from './index';
+import { getDomainPatterns, hasConfiguredAllowedDomains } from './shared/allowed-domains';
+import type { Env } from './shared/env';
+import { outputHTML } from './shared/output-html';
 import { z } from 'zod';
 
-export const supportedProviders = ['github'] as const;
-
-type Provider = (typeof supportedProviders)[number];
+type Provider = 'github';
 
 const providerScopes: Record<Provider, { default: string; separator: string; allowed: string[] }> = {
   github: {
@@ -14,7 +14,7 @@ const providerScopes: Record<Provider, { default: string; separator: string; all
 };
 
 const authQuerySchema = z.object({
-  provider: z.string().max(32).optional(),
+  provider: z.literal('github').optional(),
   siteId: z.string().trim().min(1).max(253).optional(),
   scope: z.string().max(256).optional(),
 });
@@ -32,69 +32,6 @@ const getScope = (provider: Provider, requested?: string) => {
   return fallback;
 };
 
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-export const getDomainPatterns = (allowedDomains?: string) =>
-  (allowedDomains ?? '')
-    .split(',')
-    .map((domain) => domain.trim())
-    .filter(Boolean)
-    .map((domain) => `^${escapeRegExp(domain).replaceAll('\\*', '.+')}$`);
-
-const serialize = (value: unknown) =>
-  JSON.stringify(value ?? null).replaceAll('<', '\\u003c');
-
-interface HtmlOptions {
-  provider?: string;
-  token?: string;
-  error?: string;
-  errorCode?: string;
-  env?: Env;
-}
-
-export const outputHTML = ({
-  provider = 'unknown',
-  token,
-  error,
-  errorCode,
-  env = {},
-}: HtmlOptions): Response => {
-  const state = error ? 'error' : 'success';
-  const content = error ? { provider, error, errorCode } : { provider, token };
-  const authorizationMessage = `authorization:${provider}:${state}:${JSON.stringify(content)}`;
-
-  return new Response(
-    `<!doctype html><html><body><script>
-      (() => {
-        const trustedPatterns = ${serialize(getDomainPatterns(env.ALLOWED_DOMAINS))};
-        const hasToken = ${serialize(Boolean(token))};
-        const isTrusted = (origin) => {
-          try {
-            const { hostname } = new URL(origin);
-            return trustedPatterns.some((pattern) => new RegExp(pattern).test(hostname));
-          } catch {
-            return false;
-          }
-        };
-        window.addEventListener('message', ({ data, origin }) => {
-          if (data !== 'authorizing:${provider}') return;
-          if (hasToken && trustedPatterns.length && !isTrusted(origin)) return;
-          window.opener?.postMessage(
-            ${serialize(authorizationMessage)}, origin,
-          );
-        });
-        window.opener?.postMessage('authorizing:${provider}', '*');
-      })();
-    </script></body></html>`,
-    {
-      headers: {
-        'Content-Type': 'text/html;charset=UTF-8',
-        'Set-Cookie': 'csrf-token=deleted; HttpOnly; Max-Age=0; Path=/; SameSite=Lax; Secure',
-      },
-    },
-  );
-};
-
 export const handleAuth = async (request: Request, env: Env): Promise<Response> => {
   const { searchParams } = new URL(request.url);
   const query = authQuerySchema.safeParse({
@@ -103,7 +40,7 @@ export const handleAuth = async (request: Request, env: Env): Promise<Response> 
     scope: searchParams.get('scope') ?? undefined,
   });
 
-  if (!query.success || !query.data.provider || !supportedProviders.includes(query.data.provider as Provider)) {
+  if (!query.success || !query.data.provider) {
     return outputHTML({
       env,
       error: 'Your Git backend is not supported by the authenticator.',
@@ -111,12 +48,18 @@ export const handleAuth = async (request: Request, env: Env): Promise<Response> 
     });
   }
 
-  const githubProvider = query.data.provider as Provider;
+  const githubProvider = query.data.provider;
+  if (!hasConfiguredAllowedDomains(env.ALLOWED_DOMAINS)) {
+    return outputHTML({
+      env,
+      provider: githubProvider,
+      error: 'Allowed domains are not configured. Set ALLOWED_DOMAINS to your site hostname.',
+      errorCode: 'MISCONFIGURED_DOMAINS',
+    });
+  }
+
   const domainPatterns = getDomainPatterns(env.ALLOWED_DOMAINS);
-  if (
-    domainPatterns.length &&
-    !domainPatterns.some((pattern) => new RegExp(pattern).test(query.data.siteId ?? ''))
-  ) {
+  if (!domainPatterns.some((pattern) => new RegExp(pattern).test(query.data.siteId ?? ''))) {
     return outputHTML({
       env,
       provider: githubProvider,

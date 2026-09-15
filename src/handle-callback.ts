@@ -1,5 +1,6 @@
-import type { Env } from './index';
-import { outputHTML, supportedProviders } from './handle-auth';
+import { hasConfiguredAllowedDomains } from './shared/allowed-domains';
+import type { Env } from './shared/env';
+import { outputHTML } from './shared/output-html';
 import { z } from 'zod';
 
 const callbackQuerySchema = z.object({
@@ -29,7 +30,7 @@ export const handleCallback = async (request: Request, env: Env): Promise<Respon
     request.headers.get('Cookie')?.match(/\bcsrf-token=([a-z-]+?)_([0-9a-f]{32})\b/) ?? [];
   const cookie = csrfCookieSchema.safeParse({ provider: rawProvider, csrfToken: rawCsrfToken });
 
-  if (!cookie.success || !supportedProviders.includes(cookie.data.provider)) {
+  if (!cookie.success) {
     return outputHTML({
       env,
       error: 'Your Git backend is not supported by the authenticator.',
@@ -38,6 +39,15 @@ export const handleCallback = async (request: Request, env: Env): Promise<Respon
   }
 
   const { provider, csrfToken } = cookie.data;
+
+  if (!hasConfiguredAllowedDomains(env.ALLOWED_DOMAINS)) {
+    return outputHTML({
+      env,
+      provider,
+      error: 'Allowed domains are not configured. Set ALLOWED_DOMAINS to your site hostname.',
+      errorCode: 'MISCONFIGURED_DOMAINS',
+    });
+  }
 
   if (!query.success) {
     return outputHTML({

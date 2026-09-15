@@ -30,7 +30,7 @@ Once registered, click on the **Generate a new client secret** button. The app�
 Replace the placeholder values in `wrangler.json` with your configuration:
 
 - `GITHUB_CLIENT_ID`: **Client ID** from Step 2
-- `ALLOWED_DOMAINS`: (Optional) Your site’s hostname, e.g. `www.example.com`
+- `ALLOWED_DOMAINS`: **Required.** Your site’s hostname, e.g. `www.example.com`. Replace the example value in `wrangler.json`; the Worker rejects OAuth flows while it is empty or unchanged.
   - Multiple hostnames can be defined as a comma-separated list, e.g. `www.example.com, www.example.org`
   - A wildcard (`*`) can be used to match any subdomain, e.g. `*.example.com` that will match `www.example.com`, `blog.example.com`, `docs.api.example.com`, etc. (but not `example.com`)
   - To match a `www`-less naked domain and all the subdomains, use `example.com, *.example.com`

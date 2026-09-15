@@ -2,13 +2,9 @@ import type { ExportedHandler } from '@cloudflare/workers-types';
 
 import { handleAuth } from './handle-auth';
 import { handleCallback } from './handle-callback';
+import type { Env } from './shared/env';
 
-export interface Env {
-  ALLOWED_DOMAINS?: string;
-  GITHUB_CLIENT_ID?: string;
-  GITHUB_CLIENT_SECRET?: string;
-  GITHUB_HOSTNAME?: string;
-}
+export type { Env } from './shared/env';
 
 const worker: ExportedHandler<Env> = {
   /** Route OAuth authorization requests. */
