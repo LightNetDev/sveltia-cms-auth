@@ -1,4 +1,5 @@
 import { hasConfiguredAllowedOrigins } from "./shared/allowed-origins";
+import { getCallbackUrl } from "./shared/callback-url";
 import type { Env } from "./shared/env";
 import { outputHTML } from "./shared/output-html";
 import { z } from "zod";
@@ -85,6 +86,17 @@ export const handleCallback = async (
     });
   }
 
+  const redirectUri = getCallbackUrl(env.WORKER_ORIGIN);
+  if (!redirectUri) {
+    return outputHTML({
+      env,
+      provider,
+      error:
+        "Worker origin is not configured. Set WORKER_ORIGIN to this Worker’s HTTPS origin.",
+      errorCode: "MISCONFIGURED_CALLBACK_URL",
+    });
+  }
+
   const { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET } = env;
   if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) {
     return outputHTML({
@@ -109,6 +121,7 @@ export const handleCallback = async (
           code: query.data.code,
           client_id: GITHUB_CLIENT_ID,
           client_secret: GITHUB_CLIENT_SECRET,
+          redirect_uri: redirectUri,
           code_verifier: codeVerifier,
         }),
       },

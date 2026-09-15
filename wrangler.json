@@ -4,6 +4,7 @@
   "compatibility_date": "2026-09-15",
   "vars": {
     "ALLOWED_ORIGINS": "https://www.example.com",
-    "GITHUB_CLIENT_ID": "<YOUR_GITHUB_CLIENT_ID>"
+    "GITHUB_CLIENT_ID": "<YOUR_GITHUB_CLIENT_ID>",
+    "WORKER_ORIGIN": "https://sveltia-cms-auth.<SUBDOMAIN>.workers.dev"
   }
 }
