@@ -12,12 +12,11 @@ type Provider = "github";
 
 const providerScopes: Record<
   Provider,
-  { default: string; separator: string; allowed: string[] }
+  { default: string; allowed: readonly string[] }
 > = {
   github: {
-    default: "repo,user",
-    separator: ",",
-    allowed: ["repo", "public_repo", "user", "read:user", "user:email"],
+    default: "repo",
+    allowed: ["repo", "public_repo"],
   },
 };
 
@@ -28,17 +27,13 @@ const authQuerySchema = z.object({
 });
 
 const getScope = (provider: Provider, requested?: string) => {
-  const { default: fallback, separator, allowed } = providerScopes[provider];
+  const { default: fallback, allowed } = providerScopes[provider];
   const scopes = (requested ?? "").split(/[\s,]+/).filter(Boolean);
 
   if (!scopes.length) return fallback;
-  if (scopes.every((scope) => allowed.includes(scope)))
-    return scopes.join(separator);
-
-  console.warn(
-    `Ignoring the unsupported "${requested}" scope for ${provider}; requesting "${fallback}".`,
-  );
-  return fallback;
+  return scopes.length === 1 && allowed.includes(scopes[0])
+    ? scopes[0]
+    : undefined;
 };
 
 export const handleAuth = async (
@@ -61,6 +56,16 @@ export const handleAuth = async (
   }
 
   const githubProvider = query.data.provider;
+  const scope = getScope(githubProvider, query.data.scope);
+  if (!scope) {
+    return outputHTML({
+      env,
+      provider: githubProvider,
+      error: "The requested GitHub permission is not supported.",
+      errorCode: "UNSUPPORTED_SCOPE",
+    });
+  }
+
   if (!hasConfiguredAllowedOrigins(env.ALLOWED_ORIGINS)) {
     return outputHTML({
       env,
@@ -105,7 +110,7 @@ export const handleAuth = async (
   const codeVerifier = createCodeVerifier();
   const params = new URLSearchParams({
     client_id: GITHUB_CLIENT_ID,
-    scope: getScope(githubProvider, query.data.scope),
+    scope,
     state: csrfToken,
     redirect_uri: redirectUri,
     code_challenge: await createCodeChallenge(codeVerifier),
