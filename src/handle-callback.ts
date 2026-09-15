@@ -1,19 +1,35 @@
 import type { Env } from './index';
 import { outputHTML, supportedProviders } from './handle-auth';
+import { z } from 'zod';
 
-interface TokenResponse {
-  access_token?: string;
-  error?: string;
-}
+const callbackQuerySchema = z.object({
+  code: z.string().min(1).max(2048),
+  state: z.string().regex(/^[a-f0-9]{32}$/),
+});
+
+const csrfCookieSchema = z.object({
+  provider: z.literal('github'),
+  csrfToken: z.string().regex(/^[a-f0-9]{32}$/),
+});
+
+const tokenResponseSchema = z
+  .looseObject({
+    access_token: z.string().min(1).max(4096).regex(/^[\x21-\x7E]+$/).optional(),
+    error: z.string().min(1).max(1024).optional(),
+  })
+  .refine(({ access_token, error }) => Boolean(access_token || error));
 
 export const handleCallback = async (request: Request, env: Env): Promise<Response> => {
   const { searchParams } = new URL(request.url);
-  const code = searchParams.get('code');
-  const state = searchParams.get('state');
-  const [, provider, csrfToken] =
+  const query = callbackQuerySchema.safeParse({
+    code: searchParams.get('code'),
+    state: searchParams.get('state'),
+  });
+  const [, rawProvider, rawCsrfToken] =
     request.headers.get('Cookie')?.match(/\bcsrf-token=([a-z-]+?)_([0-9a-f]{32})\b/) ?? [];
+  const cookie = csrfCookieSchema.safeParse({ provider: rawProvider, csrfToken: rawCsrfToken });
 
-  if (!provider || !supportedProviders.includes(provider as (typeof supportedProviders)[number])) {
+  if (!cookie.success || !supportedProviders.includes(cookie.data.provider)) {
     return outputHTML({
       env,
       error: 'Your Git backend is not supported by the authenticator.',
@@ -21,7 +37,9 @@ export const handleCallback = async (request: Request, env: Env): Promise<Respon
     });
   }
 
-  if (!code || !state) {
+  const { provider, csrfToken } = cookie.data;
+
+  if (!query.success) {
     return outputHTML({
       env,
       provider,
@@ -30,7 +48,7 @@ export const handleCallback = async (request: Request, env: Env): Promise<Respon
     });
   }
 
-  if (!csrfToken || state !== csrfToken) {
+  if (query.data.state !== csrfToken) {
     return outputHTML({
       env,
       provider,
@@ -55,7 +73,7 @@ export const handleCallback = async (request: Request, env: Env): Promise<Respon
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        code,
+        code: query.data.code,
         client_id: GITHUB_CLIENT_ID,
         client_secret: GITHUB_CLIENT_SECRET,
       }),
@@ -73,11 +91,14 @@ export const handleCallback = async (request: Request, env: Env): Promise<Respon
     });
   }
 
-  let token = '';
-  let error = '';
+  let tokenResponse;
   try {
-    ({ access_token: token = '', error = '' } = (await response.json()) as TokenResponse);
+    tokenResponse = tokenResponseSchema.safeParse(await response.json());
   } catch {
+    tokenResponse = { success: false };
+  }
+
+  if (!tokenResponse.success || !tokenResponse.data) {
     return outputHTML({
       env,
       provider,
@@ -86,5 +107,10 @@ export const handleCallback = async (request: Request, env: Env): Promise<Respon
     });
   }
 
-  return outputHTML({ env, provider, token, error });
+  return outputHTML({
+    env,
+    provider,
+    token: tokenResponse.data.access_token,
+    error: tokenResponse.data.error,
+  });
 };

@@ -1,4 +1,5 @@
 import type { Env } from './index';
+import { z } from 'zod';
 
 export const supportedProviders = ['github'] as const;
 
@@ -11,6 +12,12 @@ const providerScopes: Record<Provider, { default: string; separator: string; all
     allowed: ['repo', 'public_repo', 'user', 'read:user', 'user:email'],
   },
 };
+
+const authQuerySchema = z.object({
+  provider: z.string().max(32).optional(),
+  siteId: z.string().trim().min(1).max(253).optional(),
+  scope: z.string().max(256).optional(),
+});
 
 const getScope = (provider: Provider, requested?: string) => {
   const { default: fallback, separator, allowed } = providerScopes[provider];
@@ -34,7 +41,7 @@ export const getDomainPatterns = (allowedDomains?: string) =>
     .filter(Boolean)
     .map((domain) => `^${escapeRegExp(domain).replaceAll('\\*', '.+')}$`);
 
-const serialize = (value: string | boolean | string[] | null | undefined) =>
+const serialize = (value: unknown) =>
   JSON.stringify(value ?? null).replaceAll('<', '\\u003c');
 
 interface HtmlOptions {
@@ -54,6 +61,7 @@ export const outputHTML = ({
 }: HtmlOptions): Response => {
   const state = error ? 'error' : 'success';
   const content = error ? { provider, error, errorCode } : { provider, token };
+  const authorizationMessage = `authorization:${provider}:${state}:${JSON.stringify(content)}`;
 
   return new Response(
     `<!doctype html><html><body><script>
@@ -72,7 +80,7 @@ export const outputHTML = ({
           if (data !== 'authorizing:${provider}') return;
           if (hasToken && trustedPatterns.length && !isTrusted(origin)) return;
           window.opener?.postMessage(
-            'authorization:${provider}:${state}:${JSON.stringify(content)}', origin,
+            ${serialize(authorizationMessage)}, origin,
           );
         });
         window.opener?.postMessage('authorizing:${provider}', '*');
@@ -89,11 +97,13 @@ export const outputHTML = ({
 
 export const handleAuth = async (request: Request, env: Env): Promise<Response> => {
   const { searchParams } = new URL(request.url);
-  const provider = searchParams.get('provider');
-  const domain = searchParams.get('site_id');
-  const requestedScope = searchParams.get('scope') ?? undefined;
+  const query = authQuerySchema.safeParse({
+    provider: searchParams.get('provider') ?? undefined,
+    siteId: searchParams.get('site_id') ?? undefined,
+    scope: searchParams.get('scope') ?? undefined,
+  });
 
-  if (!provider || !supportedProviders.includes(provider as Provider)) {
+  if (!query.success || !query.data.provider || !supportedProviders.includes(query.data.provider as Provider)) {
     return outputHTML({
       env,
       error: 'Your Git backend is not supported by the authenticator.',
@@ -101,9 +111,12 @@ export const handleAuth = async (request: Request, env: Env): Promise<Response> 
     });
   }
 
-  const githubProvider = provider as Provider;
+  const githubProvider = query.data.provider as Provider;
   const domainPatterns = getDomainPatterns(env.ALLOWED_DOMAINS);
-  if (domainPatterns.length && !domainPatterns.some((pattern) => new RegExp(pattern).test(domain ?? ''))) {
+  if (
+    domainPatterns.length &&
+    !domainPatterns.some((pattern) => new RegExp(pattern).test(query.data.siteId ?? ''))
+  ) {
     return outputHTML({
       env,
       provider: githubProvider,
@@ -125,7 +138,7 @@ export const handleAuth = async (request: Request, env: Env): Promise<Response> 
   const csrfToken = crypto.randomUUID().replaceAll('-', '');
   const params = new URLSearchParams({
     client_id: GITHUB_CLIENT_ID,
-    scope: getScope(githubProvider, requestedScope),
+    scope: getScope(githubProvider, query.data.scope),
     state: csrfToken,
   });
 
