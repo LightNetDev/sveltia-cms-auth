@@ -30,34 +30,26 @@ Once registered, click on the **Generate a new client secret** button. The appâ€
 Replace the placeholder values in `wrangler.json` with your configuration:
 
 - `GITHUB_CLIENT_ID`: **Client ID** from Step 2
-- `ALLOWED_DOMAINS`: **Required.** Your siteâ€™s hostname, e.g. `www.example.com`. Replace the example value in `wrangler.json`; the Worker rejects OAuth flows while it is empty or unchanged.
-  - Multiple hostnames can be defined as a comma-separated list, e.g. `www.example.com, www.example.org`
-  - A wildcard (`*`) can be used to match any subdomain, e.g. `*.example.com` that will match `www.example.com`, `blog.example.com`, `docs.api.example.com`, etc. (but not `example.com`)
-  - To match a `www`-less naked domain and all the subdomains, use `example.com, *.example.com`
-  - The list serves two purposes: it stops other sites from using your Worker at your expense (anti-abuse), and it stops them from obtaining an access token through it (security), because the authenticator releases a token only to a page served from one of these hostnames
+- `ALLOWED_ORIGINS`: **Required.** Explicit HTTPS origins permitted to receive authentication responses, e.g. `https://www.example.com`. Replace the example value in `wrangler.json`
+  - Multiple origins can be defined as a comma-separated list, e.g. `https://www.example.com, https://admin.example.org`
+  - Origins must be canonical HTTPS origins without a path, query string, fragment, credentials, or wildcard. Include non-default ports explicitly, e.g. `https://admin.example.com:8443`.
+  - Each allowed subdomain must be listed explicitly. Wildcards are not supported.
+  - The list stops other sites from using your Worker and ensures the authenticator releases authorization results only to an exactly matched origin.
 
-Set the **Client Secret** from Step 2 as a Cloudflare secret; do not put it in `wrangler.json` or commit it to the repository:
+In the Cloudflare Worker Dashboard under **Settings** > **Variables and Secrets** set.
 
-```sh
-wrangler secret put GITHUB_CLIENT_SECRET
-```
-
-For dashboard deployments, add the same values under **Settings** > **Variables and Secrets**, marking `GITHUB_CLIENT_SECRET` as encrypted. Then deploy with:
-
-```sh
-wrangler deploy
-```
+- `GITHUB_CLIENT_SECRET`: Client Secret from Step 2; click the Encrypt button to hide it
 
 ### Step 4. Update your CMS configuration
 
 Open `astro.config.mjs` locally or remotely, and add your Worker URL from Step 1 as the new `base_url` property in lightnet-sveltia-cms under `backend`:
 
 ```diff
- backend:
-   name: github
-   repo: username/repo
-   branch: main
-+  base_url: <YOUR_WORKER_URL>
+backend: {
+  name: "github",
+  repo: "username/repo",
++  baseUrl: <YOUR_WORKER_URL>,
+}
 ```
 
 Commit the change. Once deployed, you can sign into Sveltia CMS remotely with GitHub!

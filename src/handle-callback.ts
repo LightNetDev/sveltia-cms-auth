@@ -1,7 +1,7 @@
-import { hasConfiguredAllowedDomains } from './shared/allowed-domains';
-import type { Env } from './shared/env';
-import { outputHTML } from './shared/output-html';
-import { z } from 'zod';
+import { hasConfiguredAllowedOrigins } from "./shared/allowed-origins";
+import type { Env } from "./shared/env";
+import { outputHTML } from "./shared/output-html";
+import { z } from "zod";
 
 const callbackQuerySchema = z.object({
   code: z.string().min(1).max(2048),
@@ -9,43 +9,57 @@ const callbackQuerySchema = z.object({
 });
 
 const csrfCookieSchema = z.object({
-  provider: z.literal('github'),
+  provider: z.literal("github"),
   csrfToken: z.string().regex(/^[a-f0-9]{32}$/),
 });
 
 const tokenResponseSchema = z
   .looseObject({
-    access_token: z.string().min(1).max(4096).regex(/^[\x21-\x7E]+$/).optional(),
+    access_token: z
+      .string()
+      .min(1)
+      .max(4096)
+      .regex(/^[\x21-\x7E]+$/)
+      .optional(),
     error: z.string().min(1).max(1024).optional(),
   })
   .refine(({ access_token, error }) => Boolean(access_token || error));
 
-export const handleCallback = async (request: Request, env: Env): Promise<Response> => {
+export const handleCallback = async (
+  request: Request,
+  env: Env,
+): Promise<Response> => {
   const { searchParams } = new URL(request.url);
   const query = callbackQuerySchema.safeParse({
-    code: searchParams.get('code'),
-    state: searchParams.get('state'),
+    code: searchParams.get("code"),
+    state: searchParams.get("state"),
   });
   const [, rawProvider, rawCsrfToken] =
-    request.headers.get('Cookie')?.match(/\bcsrf-token=([a-z-]+?)_([0-9a-f]{32})\b/) ?? [];
-  const cookie = csrfCookieSchema.safeParse({ provider: rawProvider, csrfToken: rawCsrfToken });
+    request.headers
+      .get("Cookie")
+      ?.match(/\bcsrf-token=([a-z-]+?)_([0-9a-f]{32})\b/) ?? [];
+  const cookie = csrfCookieSchema.safeParse({
+    provider: rawProvider,
+    csrfToken: rawCsrfToken,
+  });
 
   if (!cookie.success) {
     return outputHTML({
       env,
-      error: 'Your Git backend is not supported by the authenticator.',
-      errorCode: 'UNSUPPORTED_BACKEND',
+      error: "Your Git backend is not supported by the authenticator.",
+      errorCode: "UNSUPPORTED_BACKEND",
     });
   }
 
   const { provider, csrfToken } = cookie.data;
 
-  if (!hasConfiguredAllowedDomains(env.ALLOWED_DOMAINS)) {
+  if (!hasConfiguredAllowedOrigins(env.ALLOWED_ORIGINS)) {
     return outputHTML({
       env,
       provider,
-      error: 'Allowed domains are not configured. Set ALLOWED_DOMAINS to your site hostname.',
-      errorCode: 'MISCONFIGURED_DOMAINS',
+      error:
+        "Allowed origins are not configured. Set ALLOWED_ORIGINS to your site origin.",
+      errorCode: "MISCONFIGURED_ORIGINS",
     });
   }
 
@@ -53,8 +67,8 @@ export const handleCallback = async (request: Request, env: Env): Promise<Respon
     return outputHTML({
       env,
       provider,
-      error: 'Failed to receive an authorization code. Please try again later.',
-      errorCode: 'AUTH_CODE_REQUEST_FAILED',
+      error: "Failed to receive an authorization code. Please try again later.",
+      errorCode: "AUTH_CODE_REQUEST_FAILED",
     });
   }
 
@@ -62,32 +76,38 @@ export const handleCallback = async (request: Request, env: Env): Promise<Respon
     return outputHTML({
       env,
       provider,
-      error: 'Potential CSRF attack detected. Authentication flow aborted.',
-      errorCode: 'CSRF_DETECTED',
+      error: "Potential CSRF attack detected. Authentication flow aborted.",
+      errorCode: "CSRF_DETECTED",
     });
   }
 
-  const { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_HOSTNAME = 'github.com' } = env;
+  const { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET } = env;
   if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) {
     return outputHTML({
       env,
       provider,
-      error: 'OAuth app client ID or secret is not configured.',
-      errorCode: 'MISCONFIGURED_CLIENT',
+      error: "OAuth app client ID or secret is not configured.",
+      errorCode: "MISCONFIGURED_CLIENT",
     });
   }
 
   let response: Response | undefined;
   try {
-    response = await fetch(`https://${GITHUB_HOSTNAME}/login/oauth/access_token`, {
-      method: 'POST',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        code: query.data.code,
-        client_id: GITHUB_CLIENT_ID,
-        client_secret: GITHUB_CLIENT_SECRET,
-      }),
-    });
+    response = await fetch(
+      "https://github.com/login/oauth/access_token",
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          code: query.data.code,
+          client_id: GITHUB_CLIENT_ID,
+          client_secret: GITHUB_CLIENT_SECRET,
+        }),
+      },
+    );
   } catch {
     // The authorization server was unreachable.
   }
@@ -96,8 +116,8 @@ export const handleCallback = async (request: Request, env: Env): Promise<Respon
     return outputHTML({
       env,
       provider,
-      error: 'Failed to request an access token. Please try again later.',
-      errorCode: 'TOKEN_REQUEST_FAILED',
+      error: "Failed to request an access token. Please try again later.",
+      errorCode: "TOKEN_REQUEST_FAILED",
     });
   }
 
@@ -112,8 +132,8 @@ export const handleCallback = async (request: Request, env: Env): Promise<Respon
     return outputHTML({
       env,
       provider,
-      error: 'Server responded with malformed data. Please try again later.',
-      errorCode: 'MALFORMED_RESPONSE',
+      error: "Server responded with malformed data. Please try again later.",
+      errorCode: "MALFORMED_RESPONSE",
     });
   }
 
