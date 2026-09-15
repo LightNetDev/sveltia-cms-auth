@@ -11,6 +11,7 @@ const callbackQuerySchema = z.object({
 const csrfCookieSchema = z.object({
   provider: z.literal("github"),
   csrfToken: z.string().regex(/^[a-f0-9]{32}$/),
+  codeVerifier: z.string().regex(/^[A-Za-z0-9\-._~]{43,128}$/),
 });
 
 const tokenResponseSchema = z
@@ -34,13 +35,16 @@ export const handleCallback = async (
     code: searchParams.get("code"),
     state: searchParams.get("state"),
   });
-  const [, rawProvider, rawCsrfToken] =
+  const [, rawProvider, rawCsrfToken, rawCodeVerifier] =
     request.headers
       .get("Cookie")
-      ?.match(/\bcsrf-token=([a-z-]+?)_([0-9a-f]{32})\b/) ?? [];
+      ?.match(
+        /\bcsrf-token=([a-z-]+?)_([0-9a-f]{32})_([A-Za-z0-9\-._~]{43,128})\b/,
+      ) ?? [];
   const cookie = csrfCookieSchema.safeParse({
     provider: rawProvider,
     csrfToken: rawCsrfToken,
+    codeVerifier: rawCodeVerifier,
   });
 
   if (!cookie.success) {
@@ -51,7 +55,7 @@ export const handleCallback = async (
     });
   }
 
-  const { provider, csrfToken } = cookie.data;
+  const { provider, csrfToken, codeVerifier } = cookie.data;
 
   if (!hasConfiguredAllowedOrigins(env.ALLOWED_ORIGINS)) {
     return outputHTML({
@@ -105,6 +109,7 @@ export const handleCallback = async (
           code: query.data.code,
           client_id: GITHUB_CLIENT_ID,
           client_secret: GITHUB_CLIENT_SECRET,
+          code_verifier: codeVerifier,
         }),
       },
     );

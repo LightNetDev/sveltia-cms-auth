@@ -4,6 +4,7 @@ import {
 } from "./shared/allowed-origins";
 import type { Env } from "./shared/env";
 import { outputHTML } from "./shared/output-html";
+import { createCodeChallenge, createCodeVerifier } from "./shared/pkce";
 import { z } from "zod";
 
 type Provider = "github";
@@ -89,17 +90,20 @@ export const handleAuth = async (
   }
 
   const csrfToken = crypto.randomUUID().replaceAll("-", "");
+  const codeVerifier = createCodeVerifier();
   const params = new URLSearchParams({
     client_id: GITHUB_CLIENT_ID,
     scope: getScope(githubProvider, query.data.scope),
     state: csrfToken,
+    code_challenge: await createCodeChallenge(codeVerifier),
+    code_challenge_method: "S256",
   });
 
   return new Response("", {
     status: 302,
     headers: {
       Location: `https://github.com/login/oauth/authorize?${params.toString()}`,
-      "Set-Cookie": `csrf-token=${githubProvider}_${csrfToken}; HttpOnly; Path=/; Max-Age=600; SameSite=Lax; Secure`,
+      "Set-Cookie": `csrf-token=${githubProvider}_${csrfToken}_${codeVerifier}; HttpOnly; Path=/; Max-Age=600; SameSite=Lax; Secure`,
     },
   });
 };
