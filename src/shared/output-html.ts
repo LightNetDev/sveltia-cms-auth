@@ -50,6 +50,9 @@ export const outputHTML = ({
     {
       headers: {
         "Content-Type": "text/html;charset=UTF-8",
+        "Cache-Control": "no-store",
+        Pragma: "no-cache",
+        "Referrer-Policy": "no-referrer",
         "Set-Cookie":
           "csrf-token=deleted; HttpOnly; Max-Age=0; Path=/; SameSite=Lax; Secure",
       },
