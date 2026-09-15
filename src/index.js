@@ -1,7 +1,7 @@
 /**
  * List of supported OAuth providers.
  */
-const supportedProviders = ['github', 'gitlab'];
+const supportedProviders = ['github'];
 
 /**
  * OAuth scopes for each provider: the scope to request when the client doesn’t ask for one, the
@@ -15,7 +15,6 @@ const supportedProviders = ['github', 'gitlab'];
  * version of this worker granted regardless, so an unfamiliar client still signs in.
  * @type {Record<string, { default: string, separator: string, allowed: string[] }>}
  * @see https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps
- * @see https://docs.gitlab.com/api/oauth2/
  */
 const providerScopes = {
   github: {
@@ -23,18 +22,13 @@ const providerScopes = {
     separator: ',',
     allowed: ['repo', 'public_repo', 'user', 'read:user', 'user:email'],
   },
-  gitlab: {
-    default: 'api',
-    separator: ' ',
-    allowed: ['api', 'read_api', 'read_user', 'read_repository', 'write_repository'],
-  },
 };
 
 /**
  * Work out the OAuth scope to request from the given provider.
  * @param {string} provider - Backend name, e.g. `github`.
  * @param {string} [requested] - The `scope` parameter from the request, if any. Scopes may be
- * separated by commas or spaces, as the two providers differ.
+ * separated by commas or spaces.
  * @returns {string} Scope to request.
  */
 const getScope = (provider, requested) => {
@@ -162,7 +156,7 @@ const outputHTML = ({ provider = 'unknown', token, error, errorCode, env = {} })
  */
 const handleAuth = async (request, env) => {
   const { url } = request;
-  const { origin, searchParams } = new URL(url);
+  const { searchParams } = new URL(url);
   const { provider, site_id: domain, scope: requestedScope } = Object.fromEntries(searchParams);
 
   if (!provider || !supportedProviders.includes(provider)) {
@@ -180,9 +174,6 @@ const handleAuth = async (request, env) => {
     GITHUB_CLIENT_ID,
     GITHUB_CLIENT_SECRET,
     GITHUB_HOSTNAME = 'github.com',
-    GITLAB_CLIENT_ID,
-    GITLAB_CLIENT_SECRET,
-    GITLAB_HOSTNAME = 'gitlab.com',
   } = env;
 
   const domainPatterns = getDomainPatterns(ALLOWED_DOMAINS);
@@ -224,28 +215,6 @@ const handleAuth = async (request, env) => {
     authURL = `https://${GITHUB_HOSTNAME}/login/oauth/authorize?${params.toString()}`;
   }
 
-  // GitLab
-  if (provider === 'gitlab') {
-    if (!GITLAB_CLIENT_ID || !GITLAB_CLIENT_SECRET) {
-      return outputHTML({
-        env,
-        provider,
-        error: 'OAuth app client ID or secret is not configured.',
-        errorCode: 'MISCONFIGURED_CLIENT',
-      });
-    }
-
-    const params = new URLSearchParams({
-      client_id: GITLAB_CLIENT_ID,
-      redirect_uri: `${origin}/callback`,
-      response_type: 'code',
-      scope,
-      state: csrfToken,
-    });
-
-    authURL = `https://${GITLAB_HOSTNAME}/oauth/authorize?${params.toString()}`;
-  }
-
   // Redirect to the authorization server
   return new Response('', {
     status: 302,
@@ -268,7 +237,7 @@ const handleAuth = async (request, env) => {
  */
 const handleCallback = async (request, env) => {
   const { url, headers } = request;
-  const { origin, searchParams } = new URL(url);
+  const { searchParams } = new URL(url);
   const { code, state } = Object.fromEntries(searchParams);
 
   const [, provider, csrfToken] =
@@ -304,9 +273,6 @@ const handleCallback = async (request, env) => {
     GITHUB_CLIENT_ID,
     GITHUB_CLIENT_SECRET,
     GITHUB_HOSTNAME = 'github.com',
-    GITLAB_CLIENT_ID,
-    GITLAB_CLIENT_SECRET,
-    GITLAB_HOSTNAME = 'gitlab.com',
   } = env;
 
   let tokenURL = '';
@@ -328,26 +294,6 @@ const handleCallback = async (request, env) => {
       code,
       client_id: GITHUB_CLIENT_ID,
       client_secret: GITHUB_CLIENT_SECRET,
-    };
-  }
-
-  if (provider === 'gitlab') {
-    if (!GITLAB_CLIENT_ID || !GITLAB_CLIENT_SECRET) {
-      return outputHTML({
-        env,
-        provider,
-        error: 'OAuth app client ID or secret is not configured.',
-        errorCode: 'MISCONFIGURED_CLIENT',
-      });
-    }
-
-    tokenURL = `https://${GITLAB_HOSTNAME}/oauth/token`;
-    requestBody = {
-      code,
-      client_id: GITLAB_CLIENT_ID,
-      client_secret: GITLAB_CLIENT_SECRET,
-      grant_type: 'authorization_code',
-      redirect_uri: `${origin}/callback`,
     };
   }
 
@@ -399,7 +345,6 @@ export default {
    * @returns {Promise<Response>} HTTP response.
    * @see https://developers.cloudflare.com/workers/runtime-apis/fetch/
    * @see https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps
-   * @see https://docs.gitlab.com/ee/api/oauth2.html#authorization-code-flow
    */
   async fetch(request, env) {
     const { method, url } = request;
