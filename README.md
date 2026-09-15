@@ -8,7 +8,7 @@ This simple [Cloudflare Workers](https://workers.cloudflare.com/) script allows 
 
 Sign up with Cloudflare, and click the button below to start deploying.
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/sveltia/sveltia-cms-auth)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/lightnetdev/sveltia-cms-auth)
 
 Alternatively, you can clone the project and run [`wrangler deploy`](https://developers.cloudflare.com/workers/wrangler/commands/#deploy) locally.
 
@@ -18,8 +18,8 @@ Once deployed, open your Cloudflare Workers dashboard, select the `sveltia-cms-a
 
 [Register a new OAuth application](https://github.com/settings/applications/new) on GitHub ([details](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app)) with the following properties, including your Worker URL from Step 1:
 
-- Application name: `Sveltia CMS Authenticator` (or whatever)
-- Homepage URL: `https://github.com/sveltia/sveltia-cms-auth` (or whatever)
+- Application name: `LightNet Authenticator` (or whatever)
+- Homepage URL: `https://github.com/lightnetdev/sveltia-cms-auth` (or whatever)
 - Application description: (can be left empty)
 - Authorization callback URL: `<YOUR_WORKER_URL>/callback`
 
