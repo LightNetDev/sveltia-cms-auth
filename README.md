@@ -27,18 +27,26 @@ Once registered, click on the **Generate a new client secret** button. The app�
 
 ### Step 3. Configure the Worker
 
-Go back to the `sveltia-cms-auth` service page on the Cloudflare dashboard, select **Settings** > **Variables**, and add the following Environment Variables to your worker ([details](https://developers.cloudflare.com/workers/platform/environment-variables/#environment-variables-via-the-dashboard)):
+Replace the placeholder values in `wrangler.json` with your configuration:
 
 - `GITHUB_CLIENT_ID`: **Client ID** from Step 2
-- `GITHUB_CLIENT_SECRET`: **Client Secret** from Step 2; click the **Encrypt** button to hide it
-- `GITHUB_HOSTNAME`: Required only if you’re using GitHub Enterprise Server. Default: `github.com`
 - `ALLOWED_DOMAINS`: (Optional) Your site’s hostname, e.g. `www.example.com`
   - Multiple hostnames can be defined as a comma-separated list, e.g. `www.example.com, www.example.org`
   - A wildcard (`*`) can be used to match any subdomain, e.g. `*.example.com` that will match `www.example.com`, `blog.example.com`, `docs.api.example.com`, etc. (but not `example.com`)
   - To match a `www`-less naked domain and all the subdomains, use `example.com, *.example.com`
   - The list serves two purposes: it stops other sites from using your Worker at your expense (anti-abuse), and it stops them from obtaining an access token through it (security), because the authenticator releases a token only to a page served from one of these hostnames
 
-Save and deploy.
+Set the **Client Secret** from Step 2 as a Cloudflare secret; do not put it in `wrangler.json` or commit it to the repository:
+
+```sh
+wrangler secret put GITHUB_CLIENT_SECRET
+```
+
+For dashboard deployments, add the same values under **Settings** > **Variables and Secrets**, marking `GITHUB_CLIENT_SECRET` as encrypted. Then deploy with:
+
+```sh
+wrangler deploy
+```
 
 ### Step 4. Update your CMS configuration
 
