@@ -116,7 +116,7 @@ export const handleAuth = async (
     status: 302,
     headers: {
       Location: `https://github.com/login/oauth/authorize?${params.toString()}`,
-      "Set-Cookie": `csrf-token=${githubProvider}_${csrfToken}_${codeVerifier}; HttpOnly; Path=/; Max-Age=600; SameSite=Lax; Secure`,
+      "Set-Cookie": `__Host-oauth-state=${githubProvider}_${csrfToken}_${codeVerifier}; HttpOnly; Path=/; Max-Age=600; SameSite=Lax; Secure`,
     },
   });
 };

@@ -54,7 +54,7 @@ export const outputHTML = ({
         Pragma: "no-cache",
         "Referrer-Policy": "no-referrer",
         "Set-Cookie":
-          "csrf-token=deleted; HttpOnly; Max-Age=0; Path=/; SameSite=Lax; Secure",
+          "__Host-oauth-state=deleted; HttpOnly; Max-Age=0; Path=/; SameSite=Lax; Secure",
       },
     },
   );

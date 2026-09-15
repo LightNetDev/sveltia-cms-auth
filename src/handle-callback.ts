@@ -40,7 +40,7 @@ export const handleCallback = async (
     request.headers
       .get("Cookie")
       ?.match(
-        /\bcsrf-token=([a-z-]+?)_([0-9a-f]{32})_([A-Za-z0-9\-._~]{43,128})\b/,
+        /(?:^|;\s*)__Host-oauth-state=([a-z-]+?)_([0-9a-f]{32})_([A-Za-z0-9\-._~]{43,128})(?:;|$)/,
       ) ?? [];
   const cookie = csrfCookieSchema.safeParse({
     provider: rawProvider,
