@@ -15,8 +15,9 @@ interface HtmlOptions {
   env?: Env;
 }
 
+const provider = "github";
+
 export const outputHTML = ({
-  provider = "unknown",
   token,
   error,
   errorCode,

@@ -8,32 +8,22 @@ import { outputHTML } from "./shared/output-html";
 import { createCodeChallenge, createCodeVerifier } from "./shared/pkce";
 import { z } from "zod";
 
-type Provider = "github";
-
-const providerScopes: Record<
-  Provider,
-  { default: string; allowed: readonly string[] }
-> = {
-  github: {
-    default: "repo",
-    allowed: ["repo", "public_repo"],
-  },
-};
-
 const authQuerySchema = z.object({
   provider: z.literal("github").optional(),
   siteId: z.string().trim().min(1).max(253).optional(),
   scope: z.string().max(256).optional(),
 });
 
-const getScope = (provider: Provider, requested?: string) => {
-  const { default: fallback, allowed } = providerScopes[provider];
+const getScope = (requested = "repo,user") => {
   const scopes = (requested ?? "").split(/[\s,]+/).filter(Boolean);
-
-  if (!scopes.length) return fallback;
-  return scopes.length === 1 && allowed.includes(scopes[0])
-    ? scopes[0]
-    : undefined;
+  if (scopes.length === 0) {
+    return;
+  }
+  const allowed = ["repo", "public_repo", "user"];
+  if (scopes.find((s) => !allowed.includes(s))) {
+    return;
+  }
+  return requested;
 };
 
 export const handleAuth = async (
@@ -55,12 +45,10 @@ export const handleAuth = async (
     });
   }
 
-  const githubProvider = query.data.provider;
-  const scope = getScope(githubProvider, query.data.scope);
+  const scope = getScope(query.data.scope);
   if (!scope) {
     return outputHTML({
       env,
-      provider: githubProvider,
       error: "The requested GitHub permission is not supported.",
       errorCode: "UNSUPPORTED_SCOPE",
     });
@@ -69,7 +57,6 @@ export const handleAuth = async (
   if (!hasConfiguredAllowedOrigins(env.ALLOWED_ORIGINS)) {
     return outputHTML({
       env,
-      provider: githubProvider,
       error:
         "Allowed origins are not configured. Set ALLOWED_ORIGINS to your site origin.",
       errorCode: "MISCONFIGURED_ORIGINS",
@@ -79,7 +66,6 @@ export const handleAuth = async (
   if (!isAllowedSiteId(query.data.siteId, env.ALLOWED_ORIGINS)) {
     return outputHTML({
       env,
-      provider: githubProvider,
       error: "Your domain is not allowed to use the authenticator.",
       errorCode: "UNSUPPORTED_DOMAIN",
     });
@@ -89,7 +75,6 @@ export const handleAuth = async (
   if (!redirectUri) {
     return outputHTML({
       env,
-      provider: githubProvider,
       error:
         "Worker origin is not configured. Set WORKER_ORIGIN to this Worker’s HTTPS origin.",
       errorCode: "MISCONFIGURED_CALLBACK_URL",
@@ -100,7 +85,6 @@ export const handleAuth = async (
   if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) {
     return outputHTML({
       env,
-      provider: githubProvider,
       error: "OAuth app client ID or secret is not configured.",
       errorCode: "MISCONFIGURED_CLIENT",
     });
@@ -121,7 +105,7 @@ export const handleAuth = async (
     status: 302,
     headers: {
       Location: `https://github.com/login/oauth/authorize?${params.toString()}`,
-      "Set-Cookie": `__Host-oauth-state=${githubProvider}_${csrfToken}_${codeVerifier}; HttpOnly; Path=/; Max-Age=600; SameSite=Lax; Secure`,
+      "Set-Cookie": `__Host-oauth-state=github_${csrfToken}_${codeVerifier}; HttpOnly; Path=/; Max-Age=600; SameSite=Lax; Secure`,
     },
   });
 };

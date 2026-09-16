@@ -56,12 +56,11 @@ export const handleCallback = async (
     });
   }
 
-  const { provider, csrfToken, codeVerifier } = cookie.data;
+  const { csrfToken, codeVerifier } = cookie.data;
 
   if (!hasConfiguredAllowedOrigins(env.ALLOWED_ORIGINS)) {
     return outputHTML({
       env,
-      provider,
       error:
         "Allowed origins are not configured. Set ALLOWED_ORIGINS to your site origin.",
       errorCode: "MISCONFIGURED_ORIGINS",
@@ -71,7 +70,6 @@ export const handleCallback = async (
   if (!query.success) {
     return outputHTML({
       env,
-      provider,
       error: "Failed to receive an authorization code. Please try again later.",
       errorCode: "AUTH_CODE_REQUEST_FAILED",
     });
@@ -80,7 +78,6 @@ export const handleCallback = async (
   if (query.data.state !== csrfToken) {
     return outputHTML({
       env,
-      provider,
       error: "Potential CSRF attack detected. Authentication flow aborted.",
       errorCode: "CSRF_DETECTED",
     });
@@ -90,7 +87,6 @@ export const handleCallback = async (
   if (!redirectUri) {
     return outputHTML({
       env,
-      provider,
       error:
         "Worker origin is not configured. Set WORKER_ORIGIN to this Worker’s HTTPS origin.",
       errorCode: "MISCONFIGURED_CALLBACK_URL",
@@ -101,7 +97,6 @@ export const handleCallback = async (
   if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) {
     return outputHTML({
       env,
-      provider,
       error: "OAuth app client ID or secret is not configured.",
       errorCode: "MISCONFIGURED_CLIENT",
     });
@@ -109,23 +104,20 @@ export const handleCallback = async (
 
   let response: Response | undefined;
   try {
-    response = await fetch(
-      "https://github.com/login/oauth/access_token",
-      {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          code: query.data.code,
-          client_id: GITHUB_CLIENT_ID,
-          client_secret: GITHUB_CLIENT_SECRET,
-          redirect_uri: redirectUri,
-          code_verifier: codeVerifier,
-        }),
+    response = await fetch("https://github.com/login/oauth/access_token", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        code: query.data.code,
+        client_id: GITHUB_CLIENT_ID,
+        client_secret: GITHUB_CLIENT_SECRET,
+        redirect_uri: redirectUri,
+        code_verifier: codeVerifier,
+      }),
+    });
   } catch {
     // The authorization server was unreachable.
   }
@@ -133,7 +125,6 @@ export const handleCallback = async (
   if (!response) {
     return outputHTML({
       env,
-      provider,
       error: "Failed to request an access token. Please try again later.",
       errorCode: "TOKEN_REQUEST_FAILED",
     });
@@ -149,7 +140,6 @@ export const handleCallback = async (
   if (!tokenResponse.success || !tokenResponse.data) {
     return outputHTML({
       env,
-      provider,
       error: "Server responded with malformed data. Please try again later.",
       errorCode: "MALFORMED_RESPONSE",
     });
@@ -157,7 +147,6 @@ export const handleCallback = async (
 
   return outputHTML({
     env,
-    provider,
     token: tokenResponse.data.access_token,
     error: tokenResponse.data.error,
   });
