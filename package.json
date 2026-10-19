@@ -5,7 +5,7 @@
   "type": "module",
   "private": true,
   "dependencies": {
-    "@lightnet/sveltia-github-auth": "^1.0.1"
+    "@lightnet/sveltia-github-auth": "^1.1.0"
   },
   "packageManager": "pnpm@12.4.1"
 }
