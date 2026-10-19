@@ -2,6 +2,8 @@
 
 This simple [Cloudflare Workers](https://workers.cloudflare.com/) script allows [Sveltia CMS](https://sveltiacms.app/en/) users to authenticate with [GitHub](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps).
 
+OAuth handlers are provided by [`@lightnet/sveltia-github-auth`](https://www.npmjs.com/package/@lightnet/sveltia-github-auth). This project supplies the Worker routing and deployment configuration.
+
 ## How to use it
 
 ### Step 1. Deploy this project to Cloudflare Workers
@@ -27,11 +29,11 @@ Once registered, click on the **Generate a new client secret** button. The appâ€
 
 ### Step 3. Configure the Worker
 
-Replace the placeholder values in `wrangler.json` with your configuration:
+Replace the placeholder values in `wrangler.jsonc` with your configuration:
 
 - `GITHUB_CLIENT_ID`: **Client ID** from Step 2
 - `WORKER_ORIGIN`: **Required.** The canonical HTTPS origin of this Worker, e.g. `https://sveltia-cms-auth.<SUBDOMAIN>.workers.dev`. It must not contain a path, query string, fragment, or credentials. The Worker derives its fixed GitHub callback URL as `${WORKER_ORIGIN}/callback` and sends it during both OAuth requests.
-- `ALLOWED_ORIGINS`: **Required.** Explicit HTTPS origins permitted to receive authentication responses, e.g. `https://www.example.com`. Replace the example value in `wrangler.json`
+- `ALLOWED_ORIGINS`: **Required.** Explicit HTTPS origins permitted to receive authentication responses, e.g. `https://www.example.com`. Replace the example value in `wrangler.jsonc`
   - Multiple origins can be defined as a comma-separated list, e.g. `https://www.example.com, https://admin.example.org`
   - Origins must be canonical HTTPS origins without a path, query string, fragment, credentials, or wildcard. Include non-default ports explicitly, e.g. `https://admin.example.com:8443`.
   - Each allowed subdomain must be listed explicitly. Wildcards are not supported.
@@ -57,4 +59,4 @@ Commit the change. Once deployed, you can sign into Sveltia CMS remotely with Gi
 
 ## Acknowledgements
 
-This project was inspired by [`netlify-cms-oauth-firebase`](https://github.com/Herohtar/netlify-cms-oauth-firebase).
+This project was inspired by [`sveltia-cms-auth`](https://github.com/sveltia/sveltia-cms-auth).

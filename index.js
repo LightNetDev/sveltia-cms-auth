@@ -1,12 +1,6 @@
-import type { ExportedHandler } from "@cloudflare/workers-types";
+import { handleAuth, handleCallback } from "@lightnet/sveltia-github-auth";
 
-import { handleAuth } from "./handle-auth";
-import { handleCallback } from "./handle-callback";
-import type { Env } from "./shared/env";
-
-export type { Env } from "./shared/env";
-
-const worker: ExportedHandler<Env> = {
+const worker = {
   /** Route OAuth authorization requests. */
   async fetch(request, env) {
     const { pathname } = new URL(request.url);
