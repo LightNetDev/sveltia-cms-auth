@@ -3,7 +3,7 @@
   "main": "index.js",
   "compatibility_date": "2026-09-15",
   "vars": {
-    "ALLOWED_ORIGINS": "https://example.com",
+    "ALLOWED_ORIGINS": "example.com",
     "GITHUB_CLIENT_ID": "<YOUR_GITHUB_CLIENT_ID>"
   },
   "workers_dev": true,
