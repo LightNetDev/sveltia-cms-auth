@@ -167,13 +167,13 @@ importers:
   .:
     dependencies:
       '@lightnet/sveltia-github-auth':
-        specifier: ^1.1.3
-        version: 1.1.3
+        specifier: ^1.2.0
+        version: 1.2.0
 
 packages:
 
-  '@lightnet/sveltia-github-auth@1.1.3':
-    resolution: {integrity: sha512-u/Yfu9e0nQvOj7UI0qCapVa6X4TCXyvWpe89P7REiYzTL0jiqyJv782xylebJRVgt+wB1DtX7De3KDKjiD5Xag==}
+  '@lightnet/sveltia-github-auth@1.2.0':
+    resolution: {integrity: sha512-O9EgYojFjoalyXJBB/kU0rUD9V0G632kDFfLycMpufx7ygxkTcKcAy5c/ETVZ52aK7uPaRDL8/7ljDNKP9eQzg==}
     engines: {node: '>=22'}
 
   zod@4.6.7:
@@ -181,7 +181,7 @@ packages:
 
 snapshots:
 
-  '@lightnet/sveltia-github-auth@1.1.3':
+  '@lightnet/sveltia-github-auth@1.2.0':
     dependencies:
       zod: 4.6.7
 
